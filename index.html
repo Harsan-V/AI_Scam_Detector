@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!--changes-->>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Scam Detector</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <main class="app">
+    <section class="input-panel">
+      <div class="brand">
+        <div class="brand-icon">!</div>
+        <div>
+          <h1>AI Scam Detector</h1>
+          <p>Paste an email, SMS, or WhatsApp message to check scam risk.</p>
+        </div>
+      </div>
+
+      <label for="message">Message</label>
+      <textarea id="message"
+        placeholder="Paste suspicious email, SMS, or WhatsApp message here...">Urgent! Your account is blocked. Verify OTP now at http://fake-bank-login.com</textarea>
+
+      <div class="actions">
+        <button id="analyzeBtn">Analyze Message</button>
+        <button id="clearBtn" type="button">Clear</button>
+      </div>
+
+      <p id="status" class="status">Backend: waiting for analysis</p>
+    </section>
+
+    <section class="result-panel">
+      <div class="score-card">
+        <div id="scoreCircle" class="score-circle">
+          <span id="scoreValue">--</span>
+          <small>/100</small>
+        </div>
+        <div>
+          <p class="eyebrow">Prediction Result</p>
+          <h2 id="prediction">Not analyzed yet</h2>
+          <p id="analysisEngine" class="engine">Engine: not selected</p>
+          <p id="explanation">Start the Flask backend, then click Analyze Message.</p>
+        </div>
+      </div>
+
+      <div class="grid">
+        <article>
+          <h3>Suspicious Phrases</h3>
+          <ul id="phrasesList">
+            <li>No data yet</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3>URLs Detected</h3>
+          <ul id="urlsList">
+            <li>No data yet</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3>Fraud Pattern Analysis</h3>
+          <ul id="patternsList">
+            <li>No data yet</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3>Risk Summary</h3>
+          <p id="riskLevel">Risk level will appear here.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
