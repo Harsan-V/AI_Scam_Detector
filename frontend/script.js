@@ -1,4 +1,5 @@
-const API_URL = "http://127.0.0.1:5001/predict";
+const API_BASE_URL = "http://127.0.0.1:5001";
+const API_URL = `${API_BASE_URL}/predict`;
 
 const messageInput = document.getElementById("message");
 const analyzeBtn = document.getElementById("analyzeBtn");
@@ -13,6 +14,8 @@ const phrasesList = document.getElementById("phrasesList");
 const urlsList = document.getElementById("urlsList");
 const patternsList = document.getElementById("patternsList");
 const riskLevel = document.getElementById("riskLevel");
+const sampleStatus = document.getElementById("sampleStatus");
+const sampleList = document.getElementById("sampleList");
 
 function setList(element, items, formatter) {
   element.innerHTML = "";
@@ -43,6 +46,49 @@ function updateScore(score, level) {
     scoreCircle.classList.add("medium");
   } else {
     scoreCircle.classList.add("low");
+  }
+}
+
+function renderSamples(samples) {
+  sampleList.innerHTML = "";
+
+  if (!samples || samples.length === 0) {
+    return;
+  }
+
+  samples.forEach((sample) => {
+    const item = document.createElement("article");
+    item.className = "sample-item";
+
+    const message = document.createElement("p");
+    message.className = "sample-message";
+    message.textContent = sample.message;
+
+    const result = document.createElement("p");
+    result.className = `sample-result ${sample.risk_level.toLowerCase()}`;
+    result.textContent = `${sample.prediction} - ${sample.risk_level} Risk - ${sample.scam_score}/100`;
+
+    item.append(message, result);
+    sampleList.appendChild(item);
+  });
+}
+
+async function loadLocalSamples(reason) {
+  sampleStatus.textContent = reason;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/samples`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Could not load local ML samples");
+    }
+
+    sampleStatus.textContent = "LLM is unavailable, so these test samples are predicted by the trained local ML model.";
+    renderSamples(data.samples);
+  } catch (error) {
+    sampleStatus.textContent = `Local ML samples unavailable: ${error.message}`;
+    renderSamples([]);
   }
 }
 
@@ -79,7 +125,8 @@ async function analyzeMessage() {
     analysisEngine.textContent = `Engine: ${data.analysis_engine || "Unknown"}`;
     explanation.textContent = data.explanation;
     if (data.llm_error) {
-      explanation.textContent += ` LLM error: ${data.llm_error}`;
+      explanation.textContent += " The LLM could not be used, so the local ML model handled this prediction.";
+      loadLocalSamples("Loading trained local ML test samples...");
     }
     riskLevel.textContent = `Risk Level: ${data.risk_level}. Scam Score: ${data.scam_score}/100.`;
 
@@ -93,7 +140,7 @@ async function analyzeMessage() {
 
     statusText.textContent = "Analysis complete.";
   } catch (error) {
-    statusText.textContent = `Error: ${error.message}. Make sure Flask is running on http://127.0.0.1:5000`;
+    statusText.textContent = `Error: ${error.message}. Make sure Flask is running on http://127.0.0.1:5001`;
     statusText.classList.add("error");
   } finally {
     analyzeBtn.disabled = false;
@@ -112,6 +159,23 @@ clearBtn.addEventListener("click", () => {
   setList(phrasesList, []);
   setList(urlsList, []);
   setList(patternsList, []);
+  sampleStatus.textContent = "Samples appear here when the LLM is unavailable.";
+  renderSamples([]);
   statusText.textContent = "Cleared.";
   statusText.classList.remove("error");
 });
+
+async function checkLlmStatus() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    const data = await response.json();
+
+    if (response.ok && !data.llm_enabled) {
+      loadLocalSamples("No LLM API key found. Loading trained local ML test samples...");
+    }
+  } catch (error) {
+    sampleStatus.textContent = "Start Flask on http://127.0.0.1:5001 to load local ML samples.";
+  }
+}
+
+checkLlmStatus();

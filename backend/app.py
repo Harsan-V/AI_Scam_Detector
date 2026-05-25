@@ -109,6 +109,12 @@ FRAUD_PATTERNS = {
     ],
 }
 
+LOCAL_TEST_SAMPLES = [
+    "Urgent! Your account is blocked. Verify OTP now at http://fake-bank-login.com",
+    "Hello, your package will be delivered tomorrow between 10 AM and 2 PM.",
+    "Congratulations! You have won a free gift. Pay a refundable registration fee to claim now.",
+]
+
 
 app = Flask(__name__)
 
@@ -291,6 +297,33 @@ def build_explanation(prediction, scam_score, patterns, urls):
     return explanation
 
 
+def predict_with_local_model(message):
+    cleaned_message = clean_text(message)
+    probability = float(model.predict_proba([cleaned_message])[0][1])
+    scam_score = round(probability * 100, 2)
+    prediction = "Scam" if probability >= 0.5 else "Legitimate"
+
+    urls = detect_urls(message)
+    url_analysis = [{"url": url, "reasons": url_risk_reasons(url)} for url in urls]
+    suspicious_phrases = find_suspicious_phrases(message)
+    fraud_patterns = analyze_fraud_patterns(message)
+    risk_level = risk_level_from_score(scam_score)
+    explanation = build_explanation(prediction, scam_score, fraud_patterns, urls)
+
+    return {
+        "message": message,
+        "prediction": prediction,
+        "scam_score": scam_score,
+        "risk_level": risk_level,
+        "suspicious_phrases": suspicious_phrases,
+        "urls_detected": urls,
+        "url_analysis": url_analysis,
+        "fraud_patterns": fraud_patterns,
+        "explanation": explanation,
+        "analysis_engine": "Local ML fallback",
+    }
+
+
 @app.get("/")
 def home():
     return jsonify(
@@ -314,6 +347,23 @@ def health():
             "llm_enabled": bool(os.getenv("GROQ_API_KEY") or os.getenv("XAI_API_KEY")),
             "llm_provider": "GroqCloud",
             "llm_model": GROQ_MODEL,
+        }
+    )
+
+
+@app.get("/samples")
+def samples():
+    if model is None:
+        return jsonify(
+            {
+                "error": "Model file not found. Run scam_detector_ml.ipynb first to create models/scam_detector_model.pkl."
+            }
+        ), 500
+
+    return jsonify(
+        {
+            "analysis_engine": "Local ML fallback",
+            "samples": [predict_with_local_model(message) for message in LOCAL_TEST_SAMPLES],
         }
     )
 
@@ -343,32 +393,9 @@ def predict():
             }
         ), 500
 
-    cleaned_message = clean_text(message)
-    probability = float(model.predict_proba([cleaned_message])[0][1])
-    scam_score = round(probability * 100, 2)
-    prediction = "Scam" if probability >= 0.5 else "Legitimate"
-
-    urls = detect_urls(message)
-    url_analysis = [{"url": url, "reasons": url_risk_reasons(url)} for url in urls]
-    suspicious_phrases = find_suspicious_phrases(message)
-    fraud_patterns = analyze_fraud_patterns(message)
-    risk_level = risk_level_from_score(scam_score)
-    explanation = build_explanation(prediction, scam_score, fraud_patterns, urls)
-
-    return jsonify(
-        {
-            "prediction": prediction,
-            "scam_score": scam_score,
-            "risk_level": risk_level,
-            "suspicious_phrases": suspicious_phrases,
-            "urls_detected": urls,
-            "url_analysis": url_analysis,
-            "fraud_patterns": fraud_patterns,
-            "explanation": explanation,
-            "analysis_engine": "Local ML fallback",
-            "llm_error": llm_error,
-        }
-    )
+    result = predict_with_local_model(message)
+    result["llm_error"] = llm_error
+    return jsonify(result)
 
 
 if __name__ == "__main__":
